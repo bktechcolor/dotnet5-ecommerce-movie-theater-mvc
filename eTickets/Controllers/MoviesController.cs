@@ -7,7 +7,6 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -17,16 +16,29 @@ namespace eTickets.Controllers
     public class MoviesController : Controller
     {
         private readonly IMoviesService _service;
-
-        public MoviesController(IMoviesService service)
+        private readonly AppDbContext _appDbContext;
+        public MoviesController(IMoviesService service, AppDbContext appDbContext)
         {
             _service = service;
+            _appDbContext = appDbContext;
         }
 
         [AllowAnonymous]
         public async Task<IActionResult> Index()
         {
-            var allMovies = await _service.GetAllAsync(n => n.Cinema);
+            //default LazyLoading name, description, price
+            //var allMovies = await _service.GetAllAsync(n => n.Cinema);
+            var allMovies = await _appDbContext.Movies.Include(x => x.Actors_Movies)
+                                                      .ThenInclude(y => y.Actor)
+                                                      .Select(z => new
+                                                      {
+                                                          ListActorNames = z.Actors_Movies.SelectMany(z => z.Actor.FullName),
+                                                          MovieName = z.Name,
+                                                          MovieDescription = z.Description,
+                                                          MovieUrl = z.ImageURL
+
+                                                      }).ToListAsync();
+
             return View(allMovies);
         }
 
